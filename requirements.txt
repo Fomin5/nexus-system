@@ -1,0 +1,4 @@
+groq
+aiogram
+playwright
+praw
