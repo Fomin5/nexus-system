@@ -8,8 +8,8 @@ import time
 st.set_page_config(page_title="NEXUS ULTIMATE", layout="wide")
 
 # Secrets for deployment
-BYBIT_KEY = st.secrets.get("GDxt4RS3ObmhrgtGVq", "")
-BYBIT_SECRET = st.secrets.get("ZWzyWDXA8i4gp2CzNMCmYWCQWicBly61awF6", "")
+BYBIT_KEY = st.secrets.get("", "")
+BYBIT_SECRET = st.secrets.get("", "")
 
 @st.cache_data(ttl=15)
 def get_sol_price():
