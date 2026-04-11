@@ -1,3 +1,4 @@
-streamlit
+aiogram
+aiosqlite
 requests
-pybit
+solana
