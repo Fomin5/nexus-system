@@ -129,13 +129,22 @@ async def process_buy(callback: types.CallbackQuery):
     )
 
 # --- MAIN ---
+# --- MAIN ---
 async def main():
     await init_db()
+    
+    # Запускаем вебхук-сервер для приема уведомлений об оплате
     await start_webhook_server()
-    print("🚀 NEXUS SYSTEM STARTED...")
-    await dp.start_polling(bot)
+    
+    print("🚀 NEXUS SYSTEM ONLINE...")
+    
+    # УДАЛИЛИ лишнюю строку dp.start_polling(bot)
+    # ОСТАВИЛИ только версию для облачных сред:
     await dp.start_polling(bot, handle_signals=False)
     
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("🤖 Bot stopped.")
     
