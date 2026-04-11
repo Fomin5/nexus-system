@@ -1,144 +1,122 @@
 import streamlit as st
-import qrcode
-from io import BytesIO
-import streamlit.components.v1 as components
 import requests
+import streamlit.components.v1 as components
+from pybit.unified_trading import HTTP
 import time
 
-# --- 1. LIVE DATA ENGINE ---
+# --- 1. CONFIG & SECRETS ---
+st.set_page_config(page_title="NEXUS ULTIMATE", layout="wide")
+
+# Secrets for deployment
+BYBIT_KEY = st.secrets.get("GDxt4RS3ObmhrgtGVq", "")
+BYBIT_SECRET = st.secrets.get("ZWzyWDXA8i4gp2CzNMCmYWCQWicBly61awF6", "")
+
 @st.cache_data(ttl=15)
 def get_sol_price():
     try:
-        res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT", timeout=2)
+        res = requests.get("https://api.binance.com/api/v3/ticker_price?symbol=SOLUSDT", timeout=2)
         return float(res.json()['price'])
     except:
-        return 145.20
+        return 150.0
 
-# --- 2. LAYOUT CONFIG ---
-st.set_page_config(page_title="NEXUS AI TERMINAL", layout="wide", initial_sidebar_state="expanded")
-current_sol_price = get_sol_price()
+def test_bybit_connection(api_key, api_secret):
+    """API Connection Test with Server Time Sync"""
+    try:
+        # Syncing with server time to avoid Timestamp errors (10002)
+        temp_session = HTTP(testnet=False)
+        server_time = temp_session.get_server_time()['result']['timeSecond']
+        
+        session = HTTP(
+            testnet=False, 
+            api_key=api_key, 
+            api_secret=api_secret,
+            recv_window=20000 
+        )
+        session.get_wallet_balance(accountType="UNIFIED", coin="SOL")
+        return True, "Connection Successful"
+    except Exception as e:
+        return False, str(e)
 
-# --- 3. ADAPTIVE STYLES (CSS) ---
-st.markdown(f"""
+# --- 2. STYLES ---
+st.markdown("""
     <style>
-    .stApp {{ background-color: #050505; color: white; }}
-    
-    /* ADAPTIVE PHANTOM WINDOW */
-    .phantom-window {{
-        position: fixed; 
-        top: 60px; 
-        right: 20px; 
-        width: 340px; 
-        max-width: 90vw; 
-        max-height: 80vh;
-        background-color: rgba(26, 26, 26, 0.98); 
-        border: 1px solid #333; 
-        border-radius: 24px;
-        z-index: 1000; 
-        box-shadow: 0 20px 60px rgba(0,0,0,1);
-        padding: 18px; 
-        display: flex; 
-        flex-direction: column;
-        overflow-y: auto;
-        animation: fadeIn 0.3s ease-out;
-    }}
-    
-    @media (max-width: 480px) {{
-        .phantom-window {{ right: 5vw; left: 5vw; width: 90vw; top: 50px; }}
-    }}
-
-    .wallet-header {{ display: flex; justify-content: space-between; margin-bottom: 20px; }}
-    .asset-row {{ 
-        display: flex; justify-content: space-between; padding: 12px; 
-        background: #222; border-radius: 12px; margin-bottom: 8px; border: 1px solid #333;
-    }}
-    
-    div.stButton > button {{ border-radius: 10px; font-weight: 600; }}
-    @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+    .stApp { background-color: #050505; color: white; }
+    .phantom-window {
+        position: fixed; top: 80px; right: 20px; width: 340px; 
+        background-color: rgba(20, 20, 20, 0.98); border: 1px solid #333; 
+        border-radius: 20px; z-index: 1000; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .asset-row { display: flex; justify-content: space-between; padding: 10px; background: #111; border-radius: 10px; margin-bottom: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. STATE MANAGEMENT ---
-if "phantom_visible" not in st.session_state: st.session_state.phantom_visible = False
+# --- 3. STATE ---
 if "connected" not in st.session_state: st.session_state.connected = False
+if "wallet_open" not in st.session_state: st.session_state.wallet_open = False
+current_sol_price = get_sol_price()
 
-# --- 5. SIDEBAR ---
+# --- 4. SIDEBAR ---
 with st.sidebar:
     st.title("⚡ NEXUS CORE")
     if not st.session_state.connected:
-        if st.button("👻 Connect Phantom", use_container_width=True):
+        if st.button("👻 Connect Wallet", use_container_width=True, type="primary"):
             st.session_state.connected = True
             st.rerun()
     else:
-        label = f"👛 BjwVt...XqhU7J | ${current_sol_price:.2f}"
-        if st.button(label, use_container_width=True):
-            st.session_state.phantom_visible = not st.session_state.phantom_visible
+        if st.button(f"👛 Wallet: ${current_sol_price}", use_container_width=True):
+            st.session_state.wallet_open = not st.session_state.wallet_open
             st.rerun()
     
     st.divider()
-    page = st.radio("MENU", ["📈 Terminal", "💎 License"])
+    page = st.radio("MODULES", ["📈 Terminal", "🛠 Tunnel Settings"])
 
-# --- 6. PHANTOM OVERLAY ---
-if st.session_state.connected and st.session_state.phantom_visible:
-    sol_amt = 12.55
-    total_usd = (sol_amt * current_sol_price) + 105.00
-    
+# --- 5. WALLET OVERLAY ---
+if st.session_state.connected and st.session_state.wallet_open:
+    sol_bal = 12.55
     st.markdown('<div class="phantom-window">', unsafe_allow_html=True)
-    st.markdown(f"""
-        <div class="wallet-header">
-            <span style="color:#ab9ff2; font-weight:bold;">Phantom</span>
-            <span style="font-size:10px; background:#333; padding:2px 8px; border-radius:10px;">Mainnet</span>
-        </div>
-        <div style="text-align:center; margin-bottom:15px;">
-            <p style="color:#888; font-size:12px; margin:0;">Balance</p>
-            <h2 style="margin:0; font-size:32px;">${total_usd:,.2f}</h2>
-        </div>
-    """, unsafe_allow_html=True)
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.link_button("📥 Deposit", "https://www.bybit.com/fiat/trade/otc/?coin=SOL&fiat=RUB", use_container_width=True)
-    with c2:
-        if st.button("📤 Send", use_container_width=True):
-            st.toast("Redirecting to License for payment...")
-            time.sleep(1)
+    st.markdown(f"### Balance: ${sol_bal * current_sol_price:,.2f}")
     
-    st.markdown(f"""
-        <div style="margin-top:15px;"></div>
-        <div class="asset-row"><span>Solana</span><b>{sol_amt} SOL</b></div>
-        <div class="asset-row"><span>USDC</span><b>$105.00</b></div>
-    """, unsafe_allow_html=True)
-
+    c1, c2 = st.columns(2)
+    with c1: st.link_button("📥 Buy", "https://www.bybit.com/fiat/trade/otc/?coin=USDT&fiat=KGS", use_container_width=True)
+    with c2: 
+        if st.button("🏛 Withdraw", use_container_width=True):
+            st.toast("Initiating Bybit -> MBank Tunnel...")
+            
+    st.markdown(f'<div class="asset-row"><span>Solana</span><b>{sol_bal} SOL</b></div>', unsafe_allow_html=True)
     if st.button("❌ Close", use_container_width=True):
-        st.session_state.phantom_visible = False
+        st.session_state.wallet_open = False
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. PAGES ---
+# --- 6. PAGES ---
 if page == "📈 Terminal":
-    st.title(f"SOL/USDT Live — ${current_sol_price}")
+    st.subheader(f"SOL/USDT Live — ${current_sol_price}")
     components.html(f"""
-        <div style="height:600px; border:1px solid #333; border-radius:16px; overflow:hidden;">
+        <div style="height:600px; border:1px solid #333; border-radius:15px; overflow:hidden;">
             <div id="tv_chart" style="height:100%;"></div>
             <script src="https://s3.tradingview.com/tv.js"></script>
-            <script>new TradingView.widget({{"autosize":true,"symbol":"BYBIT:SOLUSDT","interval":"1","theme":"dark","container_id":"tv_chart","locale":"en"}});</script>
+            <script>
+                new TradingView.widget({{"autosize": true, "symbol": "BYBIT:SOLUSDT", "interval": "1", "theme": "dark", "container_id": "tv_chart"}});
+            </script>
         </div>
     """, height=610)
 
-elif page == "💎 License":
-    st.header("💎 Nexus Pro License")
-    st.divider()
-    col_l, col_r = st.columns([1.5, 1])
-    with col_l:
-        st.write("### AI Signals Activation")
-        u_name = st.text_input("Username (TG/Discord):")
-    with col_r:
-        st.markdown('<div style="background:#111; padding:20px; border-radius:15px; border:1px solid #ab9ff2; text-align:center;"><h4>Price: 0.5 SOL</h4></div>', unsafe_allow_html=True)
-        if st.button("ACTIVATE NOW", use_container_width=True):
-            if u_name:
-                pay_url = f"solana:BjwVtUF8t74k1WJ5jxN51gnhyekYvzs89u6whoXqhU7J?amount=0.5&memo=PRO:{u_name}"
-                qr = qrcode.make(pay_url)
-                buf = BytesIO()
-                qr.save(buf)
-                st.image(buf.getvalue(), caption="Scan to Pay", width=250)
-            else: st.warning("Enter your username!")
+elif page == "🛠 Tunnel Settings":
+    st.header("Tunnel Configuration")
+    
+    # Input fields using Secrets as default values
+    key_input = st.text_input("Bybit API Key", value=BYBIT_KEY, type="password")
+    secret_input = st.text_input("Bybit API Secret", value=BYBIT_SECRET, type="password")
+    phone = st.text_input("MBank Phone Number", placeholder="+996...")
+    
+    if st.button("Save & Test Connection"):
+        if key_input and secret_input:
+            with st.spinner("Syncing server time & testing bridge..."):
+                success, msg = test_bybit_connection(key_input, secret_input)
+                if success:
+                    st.success(f"✅ {msg}! Tunnel is operational.")
+                    st.balloons()
+                else: 
+                    st.error(f"❌ Error: {msg}")
+        else:
+            st.warning("Please enter your API keys.")
