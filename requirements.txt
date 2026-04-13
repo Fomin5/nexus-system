@@ -1,4 +1,6 @@
-aiogram
-aiosqlite
+streamlit
+pandas
+pandas_ta
+pybit
 requests
-solana
+scipy
