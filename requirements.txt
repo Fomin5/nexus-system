@@ -3,4 +3,4 @@ pandas
 pandas_ta
 pybit
 requests
-scipy
+yfinance
